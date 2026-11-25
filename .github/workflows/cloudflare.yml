@@ -9,6 +9,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,19 +26,15 @@ jobs:
           BASE_PATH: ""
         run: deno task export
 
-      - name: Create Pages project (ignored if it exists)
-        uses: cloudflare/wrangler-action@v3
-        continue-on-error: true
+      - uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: dist
-          command: pages project create winter --production-branch=main
+          node-version: 20
+
+      - name: Install Wrangler (from a clean folder)
+        run: cd /tmp && npm install -g wrangler@3
+
+      - name: Create Pages project (ignored if it exists)
+        run: wrangler pages project create winter --production-branch=main || true
 
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: dist
-          command: pages deploy . --project-name=winter --branch=main
+        run: wrangler pages deploy dist --project-name=winter --branch=main
